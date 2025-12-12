@@ -258,9 +258,9 @@ Als je de EA wil optimaliseren voor jouw specifieke broker/symbool:
 1. Dit is normaal MT4 gedrag
 2. Optie A: Gebruik een VPS die altijd aan staat
 3. Optie B: Heractiveer EA handmatig na elke MT4 herstart
-4. Optie C: Gebruik MT4 template om settings op te slaan:
-   - Chart → Template → Save Template
-   - Bij herstarten: Chart → Template → Load Template
+4. Optie C: Gebruik preset bestanden om settings snel te herladen:
+   - In EA settings, klik op "Load" en selecteer je .set bestand
+   - Let op: EA moet opnieuw naar chart gesleept worden na herstart
 
 ## 📱 Extra: VPS Setup (Aanbevolen)
 

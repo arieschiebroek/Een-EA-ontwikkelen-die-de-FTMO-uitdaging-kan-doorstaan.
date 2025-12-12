@@ -175,7 +175,7 @@ Deze EA is ontwikkeld voor persoonlijk gebruik voor de FTMO challenge.
 
 ## 💡 Tips voor FTMO Success
 
-1. **Geduld**: Laat de EA zijn werk doen, don't overoptimize
+1. **Geduld**: Laat de EA zijn werk doen, pas niet continu aan
 2. **Consistent**: Laat de EA draaien tijdens liquide uren
 3. **Monitor**: Check dagelijks maar wijzig niet constant parameters
 4. **Risk Management**: Houd je aan de 1% risico regel

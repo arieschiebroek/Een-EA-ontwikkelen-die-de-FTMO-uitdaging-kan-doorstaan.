@@ -158,10 +158,10 @@ bool IsSafeToTrade()
       return false;
    
    // Check spread
-   double spread = (Ask - Bid) / Point;
-   if(spread > MaxSpreadPips * 10)
+   double spread = (Ask - Bid) / Point / 10; // Convert to pips
+   if(spread > MaxSpreadPips)
    {
-      Print("Spread te hoog: ", spread/10, " pips");
+      Print("Spread te hoog: ", spread, " pips");
       return false;
    }
    
@@ -223,7 +223,7 @@ void AnalyzeAndTrade()
          // Controleer risk/reward ratio
          double risk = Ask - sl;
          double reward = tp - Ask;
-         if(reward / risk >= MinRiskRewardRatio)
+         if(risk > 0 && reward > 0 && (reward / risk) >= MinRiskRewardRatio)
          {
             OpenTrade(OP_BUY, lotSize, sl, tp);
          }
@@ -242,7 +242,7 @@ void AnalyzeAndTrade()
          // Controleer risk/reward ratio
          double risk = sl - Bid;
          double reward = Bid - tp;
-         if(reward / risk >= MinRiskRewardRatio)
+         if(risk > 0 && reward > 0 && (reward / risk) >= MinRiskRewardRatio)
          {
             OpenTrade(OP_SELL, lotSize, sl, tp);
          }
@@ -286,10 +286,13 @@ double CalculateLotSize(double atr)
    double riskAmount = AccountBalance() * (RiskPercentPerTrade / 100.0);
    double stopLossDistance = atr * StopLossATR;
    
-   double tickValue = MarketInfo(Symbol(), MODE_TICKVALUE);
-   double tickSize = MarketInfo(Symbol(), MODE_TICKSIZE);
+   // Bereken lot size op basis van risico
+   double pointValue = MarketInfo(Symbol(), MODE_TICKVALUE);
+   double pointSize = MarketInfo(Symbol(), MODE_POINT);
    
-   double lotSize = (riskAmount / stopLossDistance) * tickSize / tickValue;
+   // Lot size = Risk Amount / (Stop Loss in Points × Point Value)
+   double stopLossInPoints = stopLossDistance / pointSize;
+   double lotSize = riskAmount / (stopLossInPoints * pointValue);
    
    // Normaliseer lot size
    double minLot = MarketInfo(Symbol(), MODE_MINLOT);
@@ -378,6 +381,7 @@ void UpdateTrailingStops()
 {
    double atr = iATR(Symbol(), 0, ATR_Period, 1);
    double trailDistance = atr * TrailingStopATR;
+   double minStopLevel = MarketInfo(Symbol(), MODE_STOPLEVEL) * Point;
    
    for(int i = OrdersTotal() - 1; i >= 0; i--)
    {
@@ -388,7 +392,8 @@ void UpdateTrailingStops()
             if(OrderType() == OP_BUY)
             {
                double newSL = Bid - trailDistance;
-               if(newSL > OrderStopLoss() && newSL < Bid)
+               // Zorg dat nieuwe SL beter is dan oude EN minimale afstand heeft
+               if(newSL > OrderStopLoss() && (Bid - newSL) >= minStopLevel)
                {
                   bool modified = OrderModify(OrderTicket(), OrderOpenPrice(), 
                                              NormalizeDouble(newSL, Digits), 
@@ -400,7 +405,8 @@ void UpdateTrailingStops()
             else if(OrderType() == OP_SELL)
             {
                double newSL = Ask + trailDistance;
-               if(newSL < OrderStopLoss() && newSL > Ask)
+               // Zorg dat nieuwe SL beter is dan oude EN minimale afstand heeft
+               if((OrderStopLoss() == 0 || newSL < OrderStopLoss()) && (newSL - Ask) >= minStopLevel)
                {
                   bool modified = OrderModify(OrderTicket(), OrderOpenPrice(), 
                                              NormalizeDouble(newSL, Digits), 

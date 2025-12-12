@@ -134,9 +134,9 @@ Dagelijks check:
 - Test eerst op demo
 - Gebruik VPS voor stabiliteit
 - Monitor dagelijks
-- Accept enkele verlies trades
+- Accepteer enkele verlies trades
 - Laat EA zijn werk doen
-- Document alle trades
+- Documenteer alle trades
 
 ### DON'T ❌
 - Handmatig trades sluiten
@@ -144,7 +144,7 @@ Dagelijks check:
 - Paniek bij verlies trades
 - Meerdere symbolen tegelijk (in begin)
 - EA uitzetten bij eerste verlies
-- Over-optimize parameters
+- Te veel optimaliseren van parameters
 
 ---
 
