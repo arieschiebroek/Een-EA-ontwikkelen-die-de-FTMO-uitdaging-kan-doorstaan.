@@ -1,0 +1,39 @@
+//+------------------------------------------------------------------+
+//|                                FTMO_Challenge_EA_Conservative.set |
+//|                                Conservatieve settings voor veilig |
+//+------------------------------------------------------------------+
+
+; Conservatieve preset - Aanbevolen voor beginners
+; Lager risico, minder trades, hogere win rate verwacht
+
+; === Risk Management Settings ===
+RiskPercentPerTrade=0.5
+MaxDailyLossPercent=3.0
+MaxTotalLossPercent=6.0
+MaxOpenPositions=2
+
+; === Trading Strategy Settings ===
+FastMA_Period=20
+SlowMA_Period=50
+RSI_Period=14
+RSI_Overbought=65
+RSI_Oversold=35
+ATR_Period=14
+
+; === Trade Management ===
+StopLossATR=2.5
+TakeProfitATR=4.0
+UseTrailingStop=1
+TrailingStopATR=2.0
+MinRiskRewardRatio=2.0
+
+; === Trading Filters ===
+StartHour=2
+EndHour=22
+MaxSpreadPips=2.5
+TradeOnMonday=1
+TradeOnFriday=1
+
+; === Expert Advisor Settings ===
+MagicNumber=123456
+TradeComment=FTMO_EA_Conservative
