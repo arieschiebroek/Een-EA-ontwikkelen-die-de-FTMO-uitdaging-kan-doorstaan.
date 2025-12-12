@@ -1,0 +1,29 @@
+# MT4 compiled files
+*.ex4
+*.ex5
+
+# MT4 log files
+*.log
+
+# MT4 data files (not coordination files)
+*.hst
+*.fxt
+
+# Temporary files
+*.tmp
+*~
+.DS_Store
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+build/
+dist/
+
+# Test results
+test_results/
+backtest_results/
