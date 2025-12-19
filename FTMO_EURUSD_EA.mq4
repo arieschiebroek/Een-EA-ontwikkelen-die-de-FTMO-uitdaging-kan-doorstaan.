@@ -12,6 +12,7 @@
 input double LotSize = 0.01;              // Lot grootte
 input int StopLoss = 80;                   // Stop Loss in pips (EURUSD optimaal)
 input int TakeProfit = 120;                // Take Profit in pips (1.5:1 R/R)
+input int BreakEvenPips = 30;              // Pips winst voordat SL naar breakeven gaat
 input int MagicNumber = 111111;            // Magic Number voor EURUSD
 input double MaxDailyLoss = 500;           // Maximaal dagelijks verlies in USD
 input double MaxTotalDrawdown = 1000;      // Maximale totale drawdown in USD
@@ -28,6 +29,11 @@ datetime LastDayChecked;
 double MaxDrawdownReached = 0;
 double PipValue;
 
+//--- Globale variabelen voor multi-EA coordinatie
+string GV_ActiveTrades = "FTMO_ActiveTrades";           // Aantal actieve trades
+string GV_TradesAtRisk = "FTMO_TradesAtRisk";           // Trades NIET op breakeven
+string GV_DailyTradingAllowed = "FTMO_DailyAllowed";    // Trading toegestaan vandaag
+
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -43,12 +49,21 @@ int OnInit()
    else
       PipValue = Point;
    
+   // Initialiseer globale variabelen indien nodig
+   if(!GlobalVariableCheck(GV_ActiveTrades))
+      GlobalVariableSet(GV_ActiveTrades, 0);
+   if(!GlobalVariableCheck(GV_TradesAtRisk))
+      GlobalVariableSet(GV_TradesAtRisk, 0);
+   if(!GlobalVariableCheck(GV_DailyTradingAllowed))
+      GlobalVariableSet(GV_DailyTradingAllowed, 1);
+   
    Print("FTMO EURUSD EA Geïnitialiseerd");
    Print("Start Balance: ", InitialBalance);
    Print("Account: ", AccountNumber());
    Print("Symbool: ", Symbol());
    Print("Timeframe: H1");
    Print("Pip Value: ", PipValue);
+   Print("Break-Even Pips: ", BreakEvenPips);
    
    return(INIT_SUCCEEDED);
 }
@@ -73,16 +88,24 @@ void OnTick()
    {
       DailyStartBalance = AccountBalance();
       LastDayChecked = TimeCurrent();
+      GlobalVariableSet(GV_DailyTradingAllowed, 1); // Reset trading permission
       Print("Nieuwe handelsdag gestart. Dagelijkse balans reset: ", DailyStartBalance);
    }
    
-   // FTMO Regel Check: Dagelijks Verlies Limiet
+   // FTMO Regel Check: Dagelijks Verlies Limiet (5% van account)
    double DailyPnL = AccountBalance() - DailyStartBalance;
    if(DailyPnL <= -MaxDailyLoss)
    {
-      Print("WAARSCHUWING: Dagelijkse verlies limiet bereikt! Geen nieuwe trades.");
+      Print("WAARSCHUWING: Dagelijkse verlies limiet bereikt! Alle trades sluiten.");
+      GlobalVariableSet(GV_DailyTradingAllowed, 0); // Blokkeer alle EA's
       CloseAllOrders();
       return;
+   }
+   
+   // Check of trading vandaag nog toegestaan is
+   if(GlobalVariableGet(GV_DailyTradingAllowed) == 0)
+   {
+      return; // Trading geblokkeerd voor vandaag
    }
    
    // FTMO Regel Check: Maximale Drawdown Limiet
@@ -97,10 +120,22 @@ void OnTick()
       return;
    }
    
-   // Controleer of er al een open positie is
+   // Update globale trade status
+   UpdateGlobalTradeStatus();
+   
+   // Manage bestaande posities
    if(CountOrders() > 0)
    {
       ManageOpenPositions();
+      return;
+   }
+   
+   // Check of nieuwe trade toegestaan is
+   // Regel: Maximaal 1 trade "at risk" (niet op breakeven) tegelijk
+   double tradesAtRisk = GlobalVariableGet(GV_TradesAtRisk);
+   if(tradesAtRisk >= 1)
+   {
+      // Er is al een trade actief die niet op breakeven staat
       return;
    }
    
@@ -180,6 +215,9 @@ void OpenBuyOrder()
    if(ticket > 0)
    {
       Print("EURUSD Buy order geopend: ", ticket, " @ ", price);
+      Print("Deze trade is nu 'at risk' - geen nieuwe trades tot breakeven bereikt is");
+      // Update global status
+      UpdateGlobalTradeStatus();
    }
    else
    {
@@ -202,6 +240,9 @@ void OpenSellOrder()
    if(ticket > 0)
    {
       Print("EURUSD Sell order geopend: ", ticket, " @ ", price);
+      Print("Deze trade is nu 'at risk' - geen nieuwe trades tot breakeven bereikt is");
+      // Update global status
+      UpdateGlobalTradeStatus();
    }
    else
    {
@@ -220,12 +261,32 @@ void ManageOpenPositions()
       {
          if(OrderSymbol() == Symbol() && OrderMagicNumber() == MagicNumber)
          {
-            // EURUSD: Trailing stop bij 50 pips winst
             double currentPrice = (OrderType() == OP_BUY) ? Bid : Ask;
             double profit = (OrderType() == OP_BUY) ? 
                            (currentPrice - OrderOpenPrice()) / PipValue : 
                            (OrderOpenPrice() - currentPrice) / PipValue;
             
+            // Check of we break-even moeten instellen
+            if(profit >= BreakEvenPips)
+            {
+               bool isAtBreakEven = IsOrderAtBreakEven(OrderTicket());
+               
+               if(!isAtBreakEven)
+               {
+                  // Zet stop loss op breakeven (+ 2 pips voor spread)
+                  double newSL = (OrderType() == OP_BUY) ?
+                                OrderOpenPrice() + 2 * PipValue :
+                                OrderOpenPrice() - 2 * PipValue;
+                  
+                  if(OrderModify(OrderTicket(), OrderOpenPrice(), newSL, OrderTakeProfit(), 0, clrBlue))
+                  {
+                     Print("EURUSD Order ", OrderTicket(), " stop loss naar BREAK-EVEN gezet!");
+                     Print(">>> SIGNAAL: Nieuwe trade mag nu geopend worden door deze of andere EA <<<");
+                  }
+               }
+            }
+            
+            // EURUSD: Trailing stop bij verdere winst (na breakeven)
             if(profit >= 50) // 50 pips winst
             {
                double newSL = (OrderType() == OP_BUY) ?
@@ -312,5 +373,61 @@ void CloseAllOrders()
       }
    }
    Print("Totaal ", closedCount, " EURUSD order(s) gesloten vanwege FTMO limiet");
+}
+
+//+------------------------------------------------------------------+
+//| Update Global Trade Status - Updates cross-EA coordination      |
+//+------------------------------------------------------------------+
+void UpdateGlobalTradeStatus()
+{
+   int totalTrades = 0;
+   int tradesAtRisk = 0;
+   
+   // Tel alle orders van ALLE EA's
+   for(int i = 0; i < OrdersTotal(); i++)
+   {
+      if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+      {
+         // Alleen market orders (geen pending orders)
+         if(OrderType() == OP_BUY || OrderType() == OP_SELL)
+         {
+            totalTrades++;
+            
+            // Check of deze order NOG NIET op breakeven staat
+            if(!IsOrderAtBreakEven(OrderTicket()))
+            {
+               tradesAtRisk++;
+            }
+         }
+      }
+   }
+   
+   GlobalVariableSet(GV_ActiveTrades, totalTrades);
+   GlobalVariableSet(GV_TradesAtRisk, tradesAtRisk);
+}
+
+//+------------------------------------------------------------------+
+//| Check if order is at break-even                                 |
+//+------------------------------------------------------------------+
+bool IsOrderAtBreakEven(int ticket)
+{
+   if(!OrderSelect(ticket, SELECT_BY_TICKET))
+      return false;
+   
+   double openPrice = OrderOpenPrice();
+   double stopLoss = OrderStopLoss();
+   
+   if(stopLoss == 0)
+      return false; // Geen SL = niet op breakeven
+   
+   // Check of SL binnen 5 pips van open price staat (= breakeven zone)
+   double distance = MathAbs(stopLoss - openPrice) / PipValue;
+   
+   if(distance <= 5)
+   {
+      return true; // Op of dichtbij breakeven
+   }
+   
+   return false;
 }
 //+------------------------------------------------------------------+
