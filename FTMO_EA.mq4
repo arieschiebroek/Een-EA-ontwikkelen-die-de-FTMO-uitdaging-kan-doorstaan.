@@ -29,6 +29,10 @@ input bool   EnableTrading = true;           // Schakel trading in/uit
 input int    MaxTradesPerDay = 10;           // Maximaal trades per dag
 input int    Slippage = 3;                   // Toegestane slippage
 
+input string Signal_Settings = "=== Signaal Instellingen ===";
+input int    MA_Fast_Period = 20;            // Snelle Moving Average periode
+input int    MA_Slow_Period = 50;            // Trage Moving Average periode
+
 //--- Global Variables
 double StartingBalance;
 double DailyStartBalance;
@@ -52,6 +56,8 @@ int OnInit()
    Print("Stop Loss: ", StopLossPips, " pips");
    Print("Break-Even: ", BreakEvenPips, " pips");
    Print("Max Daily Loss: ", MaxDailyLossPercent, "%");
+   Print("MA Fast Period: ", MA_Fast_Period);
+   Print("MA Slow Period: ", MA_Slow_Period);
    
    StartingBalance = AccountBalance();
    DailyStartBalance = AccountBalance();
@@ -359,11 +365,14 @@ int GenerateSignal()
    // Dit is een basis signaal generator
    // Kan aangepast worden voor elk symbol met specifieke indicatoren
    
-   // Voorbeeld: Simpel Moving Average crossover
-   double ma_fast_0 = iMA(Symbol(), 0, 20, 0, MODE_SMA, PRICE_CLOSE, 0);
-   double ma_fast_1 = iMA(Symbol(), 0, 20, 0, MODE_SMA, PRICE_CLOSE, 1);
-   double ma_slow_0 = iMA(Symbol(), 0, 50, 0, MODE_SMA, PRICE_CLOSE, 0);
-   double ma_slow_1 = iMA(Symbol(), 0, 50, 0, MODE_SMA, PRICE_CLOSE, 1);
+   // Gebruik configureerbare MA periodes
+   // Voor XAUUSD: gebruik kortere periodes (bijv. MA_Fast=10, MA_Slow=30)
+   // Voor EURUSD: gebruik standaard periodes (bijv. MA_Fast=20, MA_Slow=50)
+   
+   double ma_fast_0 = iMA(Symbol(), 0, MA_Fast_Period, 0, MODE_SMA, PRICE_CLOSE, 0);
+   double ma_fast_1 = iMA(Symbol(), 0, MA_Fast_Period, 0, MODE_SMA, PRICE_CLOSE, 1);
+   double ma_slow_0 = iMA(Symbol(), 0, MA_Slow_Period, 0, MODE_SMA, PRICE_CLOSE, 0);
+   double ma_slow_1 = iMA(Symbol(), 0, MA_Slow_Period, 0, MODE_SMA, PRICE_CLOSE, 1);
    
    // Buy signal: fast MA crosses above slow MA
    if(ma_fast_1 <= ma_slow_1 && ma_fast_0 > ma_slow_0)
