@@ -371,76 +371,15 @@ int GenerateSignal()
    
    double ma_fast_0 = iMA(Symbol(), 0, MA_Fast_Period, 0, MODE_SMA, PRICE_CLOSE, 0);
    double ma_fast_1 = iMA(Symbol(), 0, MA_Fast_Period, 0, MODE_SMA, PRICE_CLOSE, 1);
-   double ma_fast_2 = iMA(Symbol(), 0, MA_Fast_Period, 0, MODE_SMA, PRICE_CLOSE, 2);
    double ma_slow_0 = iMA(Symbol(), 0, MA_Slow_Period, 0, MODE_SMA, PRICE_CLOSE, 0);
    double ma_slow_1 = iMA(Symbol(), 0, MA_Slow_Period, 0, MODE_SMA, PRICE_CLOSE, 1);
-   double ma_slow_2 = iMA(Symbol(), 0, MA_Slow_Period, 0, MODE_SMA, PRICE_CLOSE, 2);
    
-   // Basis crossover signalen
-   bool crossUp = (ma_fast_1 <= ma_slow_1 && ma_fast_0 > ma_slow_0);
-   bool crossDown = (ma_fast_1 >= ma_slow_1 && ma_fast_0 < ma_slow_0);
-   
-   // Trend detectie: fast MA moet aan juiste kant van slow MA zijn
-   bool inUptrend = (ma_fast_0 > ma_slow_0);
-   bool inDowntrend = (ma_fast_0 < ma_slow_0);
-   
-   // MA momentum: fast MA moet in de richting bewegen
-   bool fastMArisingStrong = (ma_fast_0 > ma_fast_1);
-   bool fastMAfallingStrong = (ma_fast_0 < ma_fast_1);
-   
-   // Slow MA trend (filtering)
-   bool slowMArisingStrong = (ma_slow_0 > ma_slow_1 && ma_slow_1 > ma_slow_2);
-   bool slowMAfallingStrong = (ma_slow_0 < ma_slow_1 && ma_slow_1 < ma_slow_2);
-   
-   // Prijs positie ten opzichte van MAs
-   double currentPrice = Close[0];
-   double prevPrice = Close[1];
-   bool priceAboveFast = (currentPrice > ma_fast_0);
-   bool priceBelowFast = (currentPrice < ma_fast_0);
-   bool priceAboveSlow = (currentPrice > ma_slow_0);
-   bool priceBelowSlow = (currentPrice < ma_slow_0);
-   
-   // Price momentum over laatste bars
-   double price_change_1 = Close[0] - Close[1];
-   double price_change_3 = Close[0] - Close[3];
-   double price_change_5 = Close[0] - Close[5];
-   bool strongUpMomentum1 = (price_change_1 > 0);
-   bool strongDownMomentum1 = (price_change_1 < 0);
-   bool strongUpMomentum3 = (price_change_3 > 0);
-   bool strongDownMomentum3 = (price_change_3 < 0);
-   
-   // Buy signal condities (zeer liberaal voor XAUUSD):
-   // 1. Crossover (sterkste signaal)
-   if(crossUp)
-      return 1;
-   // 2. In uptrend + fast MA stijgt + prijs boven fast MA
-   if(inUptrend && fastMArisingStrong && priceAboveFast)
-      return 1;
-   // 3. In uptrend + sterke prijs momentum omhoog + prijs boven fast MA
-   if(inUptrend && strongUpMomentum3 && priceAboveFast)
-      return 1;
-   // 4. NIEUW: Prijs boven slow MA + recent momentum omhoog
-   if(priceAboveSlow && strongUpMomentum1 && strongUpMomentum3)
-      return 1;
-   // 5. NIEUW: Strong trending: beide MAs stijgen + prijs boven beide
-   if(fastMArisingStrong && slowMArisingStrong && priceAboveFast && priceAboveSlow)
+   // Buy signal: fast MA crosses above slow MA
+   if(ma_fast_1 <= ma_slow_1 && ma_fast_0 > ma_slow_0)
       return 1;
    
-   // Sell signal condities (zeer liberaal voor XAUUSD):
-   // 1. Crossover (sterkste signaal)
-   if(crossDown)
-      return -1;
-   // 2. In downtrend + fast MA daalt + prijs onder fast MA  
-   if(inDowntrend && fastMAfallingStrong && priceBelowFast)
-      return -1;
-   // 3. In downtrend + sterke prijs momentum omlaag + prijs onder fast MA
-   if(inDowntrend && strongDownMomentum3 && priceBelowFast)
-      return -1;
-   // 4. NIEUW: Prijs onder slow MA + recent momentum omlaag
-   if(priceBelowSlow && strongDownMomentum1 && strongDownMomentum3)
-      return -1;
-   // 5. NIEUW: Strong trending: beide MAs dalen + prijs onder beide
-   if(fastMAfallingStrong && slowMAfallingStrong && priceBelowFast && priceBelowSlow)
+   // Sell signal: fast MA crosses below slow MA
+   if(ma_fast_1 >= ma_slow_1 && ma_fast_0 < ma_slow_0)
       return -1;
    
    return 0; // Geen signaal
