@@ -378,23 +378,45 @@ int GenerateSignal()
    bool crossUp = (ma_fast_1 <= ma_slow_1 && ma_fast_0 > ma_slow_0);
    bool crossDown = (ma_fast_1 >= ma_slow_1 && ma_fast_0 < ma_slow_0);
    
-   // Voor volatiele markten (XAUUSD): ook traden als fast MA boven/onder slow MA staat
-   // Dit vangt trends die al begonnen zijn
-   bool trendUp = (ma_fast_0 > ma_slow_0 && ma_fast_1 > ma_slow_1);
-   bool trendDown = (ma_fast_0 < ma_slow_0 && ma_fast_1 < ma_slow_1);
+   // Voor volatiele markten (XAUUSD): verlaagde drempel voor trend signalen
+   // Trend detectie: fast MA moet aan juiste kant van slow MA zijn
+   bool inUptrend = (ma_fast_0 > ma_slow_0);
+   bool inDowntrend = (ma_fast_0 < ma_slow_0);
    
-   // Extra momentum check met prijs positie
+   // MA momentum: fast MA moet in de richting bewegen
+   bool fastMArisingStrong = (ma_fast_0 > ma_fast_1);
+   bool fastMAfallingStrong = (ma_fast_0 < ma_fast_1);
+   
+   // Prijs positie ten opzichte van MAs
    double currentPrice = Close[0];
-   double previousPrice = Close[1];
-   bool priceUp = (currentPrice > previousPrice);
-   bool priceDown = (currentPrice < previousPrice);
+   bool priceAboveFast = (currentPrice > ma_fast_0);
+   bool priceBelowFast = (currentPrice < ma_fast_0);
    
-   // Buy signal: crossover OF (in uptrend AND prijs stijgt)
-   if(crossUp || (trendUp && priceUp && ma_fast_0 > ma_fast_1))
+   // Simpele price momentum over laatste 3 bars
+   double price_change_3 = Close[0] - Close[3];
+   bool strongUpMomentum = (price_change_3 > 0);
+   bool strongDownMomentum = (price_change_3 < 0);
+   
+   // Buy signal condities (vereenvoudigd voor meer signalen):
+   // 1. Crossover (sterkste signaal)
+   // 2. OF: In uptrend + fast MA stijgt + prijs boven fast MA
+   // 3. OF: In uptrend + sterke prijs momentum omhoog
+   if(crossUp)
+      return 1;
+   if(inUptrend && fastMArisingStrong && priceAboveFast)
+      return 1;
+   if(inUptrend && strongUpMomentum && priceAboveFast)
       return 1;
    
-   // Sell signal: crossover OF (in downtrend AND prijs daalt)  
-   if(crossDown || (trendDown && priceDown && ma_fast_0 < ma_fast_1))
+   // Sell signal condities (vereenvoudigd voor meer signalen):
+   // 1. Crossover (sterkste signaal)
+   // 2. OF: In downtrend + fast MA daalt + prijs onder fast MA  
+   // 3. OF: In downtrend + sterke prijs momentum omlaag
+   if(crossDown)
+      return -1;
+   if(inDowntrend && fastMAfallingStrong && priceBelowFast)
+      return -1;
+   if(inDowntrend && strongDownMomentum && priceBelowFast)
       return -1;
    
    return 0; // Geen signaal
