@@ -16,8 +16,6 @@ input int MagicNumber = 123456;            // Magic Number
 input double MaxDailyLoss = 500;           // Maximaal dagelijks verlies in USD
 input double MaxTotalDrawdown = 1000;      // Maximale totale drawdown in USD ($10k account = 10% max)
 input int RSI_Period = 14;                 // RSI periode
-input int RSI_Overbought = 70;            // RSI overkocht niveau
-input int RSI_Oversold = 30;              // RSI oververkocht niveau
 input int EMA_Fast = 12;                  // Snelle EMA periode
 input int EMA_Slow = 26;                  // Langzame EMA periode
 
@@ -26,6 +24,7 @@ double InitialBalance;
 double DailyStartBalance;
 datetime LastDayChecked;
 double MaxDrawdownReached = 0;
+double PipValue;
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -36,11 +35,18 @@ int OnInit()
    DailyStartBalance = AccountBalance();
    LastDayChecked = TimeCurrent();
    
+   // Calculate pip value based on broker digits
+   if(Digits == 5 || Digits == 3)
+      PipValue = Point * 10;
+   else
+      PipValue = Point;
+   
    Print("FTMO EA Geïnitialiseerd");
    Print("Start Balance: ", InitialBalance);
    Print("Account: ", AccountNumber());
    Print("Symbool: ", Symbol());
    Print("Timeframe: H1");
+   Print("Pip Value: ", PipValue);
    
    return(INIT_SUCCEEDED);
 }
@@ -152,8 +158,8 @@ int GetTradeSignal()
 void OpenBuyOrder()
 {
    double price = Ask;
-   double sl = price - StopLoss * Point * 10;
-   double tp = price + TakeProfit * Point * 10;
+   double sl = price - StopLoss * PipValue;
+   double tp = price + TakeProfit * PipValue;
    
    int ticket = OrderSend(Symbol(), OP_BUY, LotSize, price, 3, sl, tp, 
                          "FTMO Buy", MagicNumber, 0, clrGreen);
@@ -174,8 +180,8 @@ void OpenBuyOrder()
 void OpenSellOrder()
 {
    double price = Bid;
-   double sl = price + StopLoss * Point * 10;
-   double tp = price - TakeProfit * Point * 10;
+   double sl = price + StopLoss * PipValue;
+   double tp = price - TakeProfit * PipValue;
    
    int ticket = OrderSend(Symbol(), OP_SELL, LotSize, price, 3, sl, tp, 
                          "FTMO Sell", MagicNumber, 0, clrRed);
@@ -232,23 +238,49 @@ int CountOrders()
 //+------------------------------------------------------------------+
 void CloseAllOrders()
 {
+   int closedCount = 0;
    for(int i = OrdersTotal() - 1; i >= 0; i--)
    {
       if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
       {
          if(OrderSymbol() == Symbol() && OrderMagicNumber() == MagicNumber)
          {
-            if(OrderType() == OP_BUY)
+            bool closed = false;
+            int attempts = 0;
+            int maxAttempts = 3;
+            
+            while(!closed && attempts < maxAttempts)
             {
-               OrderClose(OrderTicket(), OrderLots(), Bid, 3, clrRed);
+               if(OrderType() == OP_BUY)
+               {
+                  closed = OrderClose(OrderTicket(), OrderLots(), Bid, 3, clrRed);
+               }
+               else if(OrderType() == OP_SELL)
+               {
+                  closed = OrderClose(OrderTicket(), OrderLots(), Ask, 3, clrRed);
+               }
+               
+               if(!closed)
+               {
+                  int error = GetLastError();
+                  Print("Fout bij sluiten order ", OrderTicket(), ": ", error, " (poging ", attempts + 1, "/", maxAttempts, ")");
+                  Sleep(1000); // Wait 1 second before retry
+                  attempts++;
+               }
+               else
+               {
+                  closedCount++;
+                  Print("Order ", OrderTicket(), " succesvol gesloten");
+               }
             }
-            else if(OrderType() == OP_SELL)
+            
+            if(!closed)
             {
-               OrderClose(OrderTicket(), OrderLots(), Ask, 3, clrRed);
+               Print("WAARSCHUWING: Order ", OrderTicket(), " kon niet gesloten worden na ", maxAttempts, " pogingen");
             }
          }
       }
    }
-   Print("Alle orders gesloten vanwege FTMO limiet");
+   Print("Totaal ", closedCount, " order(s) gesloten vanwege FTMO limiet");
 }
 //+------------------------------------------------------------------+
