@@ -374,12 +374,27 @@ int GenerateSignal()
    double ma_slow_0 = iMA(Symbol(), 0, MA_Slow_Period, 0, MODE_SMA, PRICE_CLOSE, 0);
    double ma_slow_1 = iMA(Symbol(), 0, MA_Slow_Period, 0, MODE_SMA, PRICE_CLOSE, 1);
    
-   // Buy signal: fast MA crosses above slow MA
-   if(ma_fast_1 <= ma_slow_1 && ma_fast_0 > ma_slow_0)
+   // Basis crossover signalen
+   bool crossUp = (ma_fast_1 <= ma_slow_1 && ma_fast_0 > ma_slow_0);
+   bool crossDown = (ma_fast_1 >= ma_slow_1 && ma_fast_0 < ma_slow_0);
+   
+   // Voor volatiele markten (XAUUSD): ook traden als fast MA boven/onder slow MA staat
+   // Dit vangt trends die al begonnen zijn
+   bool trendUp = (ma_fast_0 > ma_slow_0 && ma_fast_1 > ma_slow_1);
+   bool trendDown = (ma_fast_0 < ma_slow_0 && ma_fast_1 < ma_slow_1);
+   
+   // Extra momentum check met prijs positie
+   double currentPrice = Close[0];
+   double previousPrice = Close[1];
+   bool priceUp = (currentPrice > previousPrice);
+   bool priceDown = (currentPrice < previousPrice);
+   
+   // Buy signal: crossover OF (in uptrend AND prijs stijgt)
+   if(crossUp || (trendUp && priceUp && ma_fast_0 > ma_fast_1))
       return 1;
    
-   // Sell signal: fast MA crosses below slow MA
-   if(ma_fast_1 >= ma_slow_1 && ma_fast_0 < ma_slow_0)
+   // Sell signal: crossover OF (in downtrend AND prijs daalt)  
+   if(crossDown || (trendDown && priceDown && ma_fast_0 < ma_fast_1))
       return -1;
    
    return 0; // Geen signaal
