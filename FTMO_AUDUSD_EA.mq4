@@ -13,7 +13,7 @@ input double LotSize = 0.01;              // Lot grootte
 input int StopLoss = 85;                   // Stop Loss in pips
 input int TakeProfit = 130;                // Take Profit in pips (1.5:1 R/R)
 input int MagicNumber = 444444;            // Magic Number voor AUDUSD
-input double MaxDailyLoss = 500;           // Maximaal dagelijks verlies in USD
+input double MaxDailyLossPercent = 5.0;    // Maximaal dagelijks verlies in % (FTMO: 5%)
 input double MaxTotalDrawdown = 1000;      // Maximale totale drawdown in USD
 input int RSI_Period = 14;                 // RSI periode
 input int EMA_Fast = 11;                   // Snelle EMA
@@ -77,11 +77,14 @@ void OnTick()
       Print("Nieuwe handelsdag gestart. Dagelijkse balans reset: ", DailyStartBalance);
    }
    
-   // FTMO Regel Check: Dagelijks Verlies Limiet
+   // FTMO Regel Check: Dagelijks Verlies Limiet (5% van dagelijkse start balance)
+   double MaxDailyLoss = DailyStartBalance * (MaxDailyLossPercent / 100.0);
    double DailyPnL = AccountBalance() - DailyStartBalance;
    if(DailyPnL <= -MaxDailyLoss)
    {
-      Print("WAARSCHUWING: Dagelijkse verlies limiet bereikt! Geen nieuwe trades.");
+      Print("WAARSCHUWING: Dagelijkse verlies limiet bereikt!");
+      Print("Start balance: ", DailyStartBalance, " | Max verlies: ", MaxDailyLoss, " (", MaxDailyLossPercent, "%)");
+      Print("Huidig verlies: ", -DailyPnL, " | Geen nieuwe trades.");
       CloseAllOrders();
       return;
    }

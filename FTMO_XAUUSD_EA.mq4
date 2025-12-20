@@ -13,7 +13,7 @@ input double LotSize = 0.01;              // Lot grootte
 input int StopLoss = 200;                  // Stop Loss in pips (Gold zeer volatiel)
 input int TakeProfit = 300;                // Take Profit in pips (1.5:1 R/R)
 input int MagicNumber = 555555;            // Magic Number voor XAUUSD
-input double MaxDailyLoss = 500;           // Maximaal dagelijks verlies in USD
+input double MaxDailyLossPercent = 5.0;    // Maximaal dagelijks verlies in % (FTMO: 5%)
 input double MaxTotalDrawdown = 1000;      // Maximale totale drawdown in USD
 input int RSI_Period = 14;                 // RSI periode
 input int EMA_Fast = 15;                   // Snelle EMA (langer voor Gold)
@@ -76,11 +76,14 @@ void OnTick()
       Print("Nieuwe handelsdag gestart. Dagelijkse balans reset: ", DailyStartBalance);
    }
    
-   // FTMO Regel Check: Dagelijks Verlies Limiet
+   // FTMO Regel Check: Dagelijks Verlies Limiet (5% van dagelijkse start balance)
+   double MaxDailyLoss = DailyStartBalance * (MaxDailyLossPercent / 100.0);
    double DailyPnL = AccountBalance() - DailyStartBalance;
    if(DailyPnL <= -MaxDailyLoss)
    {
-      Print("WAARSCHUWING: Dagelijkse verlies limiet bereikt! Geen nieuwe trades.");
+      Print("WAARSCHUWING: Dagelijkse verlies limiet bereikt!");
+      Print("Start balance: ", DailyStartBalance, " | Max verlies: ", MaxDailyLoss, " (", MaxDailyLossPercent, "%)");
+      Print("Huidig verlies: ", -DailyPnL, " | Geen nieuwe trades.");
       CloseAllOrders();
       return;
    }

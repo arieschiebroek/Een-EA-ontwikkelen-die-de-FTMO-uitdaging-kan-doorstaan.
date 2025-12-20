@@ -14,7 +14,7 @@ input int StopLoss = 80;                   // Stop Loss in pips (EURUSD optimaal
 input int TakeProfit = 120;                // Take Profit in pips (1.5:1 R/R)
 input int BreakEvenPips = 30;              // Pips winst voordat SL naar breakeven gaat
 input int MagicNumber = 111111;            // Magic Number voor EURUSD
-input double MaxDailyLoss = 500;           // Maximaal dagelijks verlies in USD
+input double MaxDailyLossPercent = 5.0;    // Maximaal dagelijks verlies in % (FTMO: 5%)
 input double MaxTotalDrawdown = 1000;      // Maximale totale drawdown in USD
 input int RSI_Period = 14;                 // RSI periode
 input int EMA_Fast = 9;                    // Snelle EMA (aangepast voor EURUSD)
@@ -92,11 +92,14 @@ void OnTick()
       Print("Nieuwe handelsdag gestart. Dagelijkse balans reset: ", DailyStartBalance);
    }
    
-   // FTMO Regel Check: Dagelijks Verlies Limiet (5% van account)
+   // FTMO Regel Check: Dagelijks Verlies Limiet (5% van dagelijkse start balance)
+   double MaxDailyLoss = DailyStartBalance * (MaxDailyLossPercent / 100.0);
    double DailyPnL = AccountBalance() - DailyStartBalance;
    if(DailyPnL <= -MaxDailyLoss)
    {
-      Print("WAARSCHUWING: Dagelijkse verlies limiet bereikt! Alle trades sluiten.");
+      Print("WAARSCHUWING: Dagelijkse verlies limiet bereikt!");
+      Print("Start balance: ", DailyStartBalance, " | Max verlies: ", MaxDailyLoss, " (", MaxDailyLossPercent, "%)");
+      Print("Huidig verlies: ", -DailyPnL, " | Alle trades sluiten.");
       GlobalVariableSet(GV_DailyTradingAllowed, 0); // Blokkeer alle EA's
       CloseAllOrders();
       return;
