@@ -13,6 +13,7 @@ input double LotSize = 0.01;              // Lot grootte
 input int StopLoss = 80;                   // Stop Loss in pips (EURUSD optimaal)
 input int TakeProfit = 120;                // Take Profit in pips (1.5:1 R/R)
 input int BreakEvenPips = 30;              // Pips winst voordat SL naar breakeven gaat
+input int BreakEvenOffset = 2;             // Extra pips boven breakeven (voor spread/veiligheid)
 input int MagicNumber = 111111;            // Magic Number voor EURUSD
 input double MaxDailyLossPercent = 5.0;    // Maximaal dagelijks verlies in % (FTMO: 5%)
 input double MaxTotalDrawdown = 1000;      // Maximale totale drawdown in USD
@@ -276,14 +277,15 @@ void ManageOpenPositions()
                
                if(!isAtBreakEven)
                {
-                  // Zet stop loss op breakeven (+ 2 pips voor spread)
+                  // Zet stop loss op breakeven (+ offset pips voor spread/veiligheid)
                   double newSL = (OrderType() == OP_BUY) ?
-                                OrderOpenPrice() + 2 * PipValue :
-                                OrderOpenPrice() - 2 * PipValue;
+                                OrderOpenPrice() + BreakEvenOffset * PipValue :
+                                OrderOpenPrice() - BreakEvenOffset * PipValue;
                   
                   if(OrderModify(OrderTicket(), OrderOpenPrice(), newSL, OrderTakeProfit(), 0, clrBlue))
                   {
                      Print("EURUSD Order ", OrderTicket(), " stop loss naar BREAK-EVEN gezet!");
+                     Print("Break-even niveau: ", OrderOpenPrice(), " + ", BreakEvenOffset, " pips = ", newSL);
                      Print(">>> SIGNAAL: Nieuwe trade mag nu geopend worden door deze of andere EA <<<");
                   }
                }
@@ -423,10 +425,11 @@ bool IsOrderAtBreakEven(int ticket)
    if(stopLoss == 0)
       return false; // Geen SL = niet op breakeven
    
-   // Check of SL binnen 5 pips van open price staat (= breakeven zone)
+   // Check of SL binnen bereik van breakeven staat (offset + buffer van 3 pips)
    double distance = MathAbs(stopLoss - openPrice) / PipValue;
+   double breakEvenZone = BreakEvenOffset + 3; // Offset + 3 pips buffer
    
-   if(distance <= 5)
+   if(distance <= breakEvenZone)
    {
       return true; // Op of dichtbij breakeven
    }
